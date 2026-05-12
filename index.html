@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delta Update👻 - By Gael Scripts😎</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;900&display=swap');
+        
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Inter', sans-serif; }
+        canvas { display: block; }
+        
+        /* Intro Gigante */
+        #intro-layer {
+            position: fixed; inset: 0; z-index: 100;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            background: black;
+            transition: opacity 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        #intro-text {
+            font-size: 3rem;
+            font-weight: 900;
+            letter-spacing: 1.2em;
+            text-transform: uppercase;
+            color: #3b82f6;
+            opacity: 0;
+            transform: scale(0.8);
+            filter: blur(15px);
+            transition: all 1.8s ease-out;
+            text-shadow: 0 0 30px rgba(59, 130, 246, 0.7);
+            text-align: center;
+            padding-left: 1.2em; /* Compensa el letter-spacing para centrar */
+        }
+
+        .line-loader {
+            width: 0%; height: 4px;
+            margin-top: 30px;
+            background: linear-gradient(90deg, transparent, #3b82f6, #60a5fa, #3b82f6, transparent);
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.8);
+            transition: width 2.5s cubic-bezier(0.65, 0, 0.35, 1);
+        }
+
+        /* Interfaz Principal */
+        #main-ui {
+            position: fixed; inset: 0; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 10;
+            opacity: 0; transform: scale(1.1);
+            transition: all 2s ease-in-out;
+            pointer-events: none;
+        }
+
+        #redirect-overlay {
+            position: fixed; inset: 0; z-index: 50; display: flex;
+            align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none;
+            transition: opacity 2s ease-in-out;
+        }
+
+        .glass-panel {
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(30px);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 3rem;
+        }
+
+        .delta-glow {
+            text-shadow: 0 0 50px rgba(59, 130, 246, 0.6);
+        }
+
+        @media (max-width: 768px) {
+            #intro-text { font-size: 1.5rem; letter-spacing: 0.5em; padding-left: 0.5em; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="intro-layer">
+        <div class="text-center w-full">
+            <h2 id="intro-text">By Gael Scripts</h2>
+            <div id="intro-line" class="line-loader mx-auto"></div>
+        </div>
+    </div>
+
+    <div id="main-ui">
+        <div class="mb-6 px-6 py-2 border border-blue-500/30 bg-blue-500/10 rounded-full">
+            <span class="text-[10px] tracking-[0.6em] uppercase text-blue-400 font-bold">System Status: Orbital Ready</span>
+        </div>
+        
+        <h1 class="delta-glow text-7xl md:text-9xl font-black italic uppercase text-white leading-none tracking-tighter">
+            Delta <span class="text-blue-500">Update</span>
+        </h1>
+
+        <div class="mt-16">
+            <button onclick="startSmoothJourney()" class="group relative px-24 py-6 overflow-hidden border border-blue-500/40 text-white font-bold uppercase text-[11px] tracking-[0.5em] transition-all duration-700">
+                <div class="absolute inset-0 bg-blue-600/20 translate-y-full group-hover:translate-y-0 transition-transform duration-700"></div>
+                <span class="relative z-10">Download</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="redirect-overlay">
+        <div class="glass-panel p-16 flex flex-col items-center max-w-md w-full">
+            <div class="relative w-32 h-32 mb-10">
+                <svg class="w-full h-full -rotate-90">
+                    <circle cx="64" cy="64" r="58" stroke="#0f172a" stroke-width="4" fill="none"/>
+                    <circle id="progress-bar" cx="64" cy="64" r="58" stroke="#3b82f6" stroke-width="5" fill="none" stroke-dasharray="364.4" stroke-dashoffset="364.4" class="transition-all duration-1000 ease-linear"/>
+                </svg>
+                <div id="timer-text" class="absolute inset-0 flex items-center justify-center font-mono text-4xl font-light text-white">50</div>
+            </div>
+            <p class="text-blue-400 text-xs uppercase tracking-[0.5em] animate-pulse">Sincronizando Archivos...</p>
+        </div>
+    </div>
+
+    <script>
+        let scene, camera, renderer, starGeo, stars;
+        const starCount = 15000; // Más estrellas para rellenar huecos
+
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 3000);
+            camera.position.z = 1000;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.body.appendChild(renderer.domElement);
+
+            starGeo = new THREE.BufferGeometry();
+            const positions = new Float32Array(starCount * 3);
+            
+            // Creación de estrellas en una esfera completa para que no haya huecos
+            for (let i = 0; i < starCount; i++) {
+                positions[i * 3] = (Math.random() - 0.5) * 3000;
+                positions[i * 3 + 1] = (Math.random() - 0.5) * 3000;
+                positions[i * 3 + 2] = (Math.random() - 0.5) * 3000;
+            }
+            
+            starGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 1.2, transparent: true });
+            stars = new THREE.Points(starGeo, starMaterial);
+            scene.add(stars);
+
+            runIntroSequence();
+            animate();
+        }
+
+        function runIntroSequence() {
+            const introLayer = document.getElementById('intro-layer');
+            const introText = document.getElementById('intro-text');
+            const introLine = document.getElementById('intro-line');
+            const mainUI = document.getElementById('main-ui');
+
+            setTimeout(() => {
+                introText.style.opacity = '1';
+                introText.style.transform = 'scale(1)';
+                introText.style.filter = 'blur(0px)';
+                introLine.style.width = '100%';
+            }, 500);
+
+            setTimeout(() => {
+                introLayer.style.opacity = '0';
+                setTimeout(() => {
+                    introLayer.style.display = 'none';
+                    mainUI.style.opacity = '1';
+                    mainUI.style.transform = 'scale(1)';
+                    mainUI.style.pointerEvents = 'auto';
+                }, 1500);
+            }, 4000);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Animación de rotación constante para que siempre haya estrellas en pantalla
+            stars.rotation.y += 0.0005;
+            stars.rotation.x += 0.0002;
+
+            const positions = starGeo.attributes.position.array;
+            for (let i = 0; i < starCount; i++) {
+                // Movimiento hacia adelante
+                positions[i * 3 + 2] += 2; 
+                // Si la estrella pasa la cámara, se manda al fondo pero con dispersión aleatoria
+                if (positions[i * 3 + 2] > 1500) {
+                    positions[i * 3 + 2] = -1500;
+                    positions[i * 3] = (Math.random() - 0.5) * 3000;
+                    positions[i * 3 + 1] = (Math.random() - 0.5) * 3000;
+                }
+            }
+            starGeo.attributes.position.needsUpdate = true;
+            renderer.render(scene, camera);
+        }
+
+        function startSmoothJourney() {
+            document.getElementById('main-ui').style.opacity = '0';
+            document.getElementById('main-ui').style.transform = 'scale(1.2)';
+            
+            setTimeout(() => {
+                const overlay = document.getElementById('redirect-overlay');
+                overlay.style.opacity = '1';
+                startCountdown();
+            }, 2000); 
+        }
+
+        function startCountdown() {
+            let count = 50;
+            const bar = document.getElementById('progress-bar');
+            const timerText = document.getElementById('timer-text');
+            const dash = 364.4;
+
+            const interval = setInterval(() => {
+                count--;
+                timerText.innerText = count;
+                const offset = dash - ((50 - count) / 50) * dash;
+                bar.style.strokeDashoffset = offset;
+
+                if (count <= 0) {
+                    clearInterval(interval);
+                    window.location.href = "http://delta-executor.com/download/";
+                }
+            }, 1000);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        init();
+    </script>
+</body>
+</html>
